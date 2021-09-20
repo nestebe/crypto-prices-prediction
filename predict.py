@@ -1,8 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as ptl
+import matplotlib.pyplot as plt
 import pandas as pd
 import pandas_datareader as web
 import datetime as dt
+from sklearn.base import clone
 
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.layers import Dense, Dropout, LSTM
@@ -48,3 +49,35 @@ model.compile(optimizer='adam', loss='mean_squared_error')
 model.fit(x_train, y_train, epochs=25, batch_size=32)
 
 #Test Model
+
+test_start = dt.datetime(2020,1,1)
+test_end= dt.datetime.now()
+
+test_data = web.DataReader(f'{crypto}-{currency}', 'yahoo', test_start, test_end)
+
+current_prices = test_data['Close'].values
+
+total_dataset = pd.concat((data['Close'], test_data['Close']), axis=0)
+
+model_inputs = total_dataset[len(total_dataset) - len(test_data) - prediction_days:].values
+model_inputs = model_inputs.reshape(-1, 1)
+model_inputs = scaler.fit_transform(model_inputs)
+
+x_test = []
+
+for x in range(prediction_days, len(model_inputs)):
+    x_test.append(model_inputs[x-prediction_days:x,0])
+
+x_test = np.array(x_test)
+x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
+
+prediction_prices = model.predict(x_test)
+prediction_prices = scaler.inverse_transform(prediction_prices)
+
+plt.plot(current_prices, color='black', label='Actual prices')
+plt.plot(prediction_prices, color='green', label='Prediction prices')
+plt.title(f'{crypto} Prices prediction')
+plt.xlabel("Time")
+plt.ylabel("Price")
+plt.legend(loc="upper left")
+plt.show()
